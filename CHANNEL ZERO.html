@@ -1,0 +1,229 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>CHANNEL ZERO</title>
+<style>
+:root{--g:#9fe8a8;--bg:#05080a;color-scheme:dark}
+html,body{margin:0;height:100%;background:#000;color:var(--g);font:14px/1.4 "Courier New",monospace;overflow:hidden}
+#cv{position:fixed;inset:0;width:100%;height:100%;display:block}
+#fx{position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.2) 0 1px,transparent 1px 3px),radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.8));z-index:2}
+#fl{position:fixed;inset:0;background:#cfe;opacity:0;pointer-events:none;z-index:3;transition:opacity .3s}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:4}
+#cross{position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;background:#fff8;border-radius:50%}
+#pr{position:absolute;left:50%;top:56%;transform:translateX(-50%);color:#fff;text-shadow:0 0 4px #000}
+#ob{position:absolute;left:12px;top:calc(12px + env(safe-area-inset-top));max-width:330px;font-size:12px;text-shadow:0 0 3px #000}
+#sub{position:absolute;bottom:8%;width:100%;text-align:center;color:#fff;text-shadow:0 0 4px #000,0 0 4px #000;padding:0 10%;box-sizing:border-box}
+.ov{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#000c;z-index:5}
+.pn{background:var(--bg);border:2px solid var(--g);padding:14px;width:min(640px,94vw);max-height:88vh;overflow:auto;box-shadow:0 0 30px #0a3}
+.w95{background:#c0c0c0;color:#000;border:3px outset #fff;box-shadow:none}
+button{font:inherit;background:#0b1a10;color:var(--g);border:1px solid var(--g);padding:4px 10px;margin:2px;cursor:pointer}
+.w95 button{background:#c0c0c0;color:#000;border:2px outset #fff}
+button:hover{filter:brightness(1.4)}button:focus-visible{outline:2px solid #fff}
+canvas.sc{width:100%;image-rendering:pixelated;background:#000;border:1px solid #284}
+input[type=text]{font:inherit}
+</style></head><body>
+<canvas id="cv"></canvas><div id="fx"></div><div id="fl"></div>
+<div id="hud"><div id="cross"></div><div id="pr"></div><div id="ob"></div><div id="sub"></div></div>
+<div id="ov" class="ov"><div id="pn" class="pn"></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $=i=>document.getElementById(i),R=Math.random,NM=["ARCHIVE","SIGNAL","THE STUDIO","THE INCIDENT","ZERO"];
+let S={d:[],inv:[],docs:[],sec:[],login:0,code:0,end:0,sg3:0,pos:[2,2,2,2,2]};
+const set={sens:.003,br:1,vol:.7,sub:1};
+try{Object.assign(S,JSON.parse(localStorage.getItem("cz0")||"{}"))}catch(e){}
+const save=()=>{try{localStorage.setItem("cz0",JSON.stringify(S))}catch(e){}};
+const night=()=>Math.min(5,1+[1,2,3,4].filter(n=>S.d.includes(n)).length);
+/* ---------- content ---------- */
+const T=[0,
+{bg:"#e8c860",fc:"#f5c518",tr:.5,sg:.5,L:["SUNNY: Welcome, neighbors! Today we learn about patience.","MARLOW: Take your time. Everyone gets a turn.","Under the audio, a child whispers: Eleven minutes, neighbors. Eleven."]},
+{bg:"#2a3a2a",fc:"#555",tr:.4,sg:.65,L:["Locked-off shot of Studio A, after filming. Nobody is there.","Audio: someone reads a bedtime story, slowly, to no one.","The reader is Mr. Weller. The set clock behind him reads 4:11."]},
+{bg:"#3a4a6a",fc:"#aab",tr:.65,sg:.4,L:["NARRATOR: The station has four wings. Wing C is staff only.","NARRATOR: Never record after midnight. Never answer the red phone.","NARRATOR, off script: There is no Wing C. There never was."]},
+{bg:"#702020",fc:"#f5c518",tr:.3,sg:.7,L:["Episode 212. Sunny waves at a camera that is not there.","An audience laughs. The studio had no audience.","One frame flashes: 94 / 11. The extra minutes begin here."]},
+{bg:"#222",fc:"#d33",tr:.55,sg:.55,L:["Dated 12/09/1997, six days after shutdown. Hallway camera. Lights on.","A figure in the Sunny costume walks into the Control Room and shuts the door.","It turns to the lens and says: Technician. Do not rewind this."]},
+{bg:"#000",fc:"#fff",tr:.5,sg:.5,L:["No label. No date. A recording of this archive room, tonight.","You are seated at the deck. Someone stands behind you.","A voice: Channel Zero was never a channel. It is a door that watches back."]}];
+const FL=[["DIRECTORY","STAFF: Dana Reyes (archive), Tom Okafor (engineering), J. Weller (puppetry, voice of Mr. Weller), M. Morrow (owner). Wing C: no listed occupants."],
+["MEMO_1991","Unscheduled sessions in Studio A at 02:00, no badge-ins. Tom: the tape rolls itself. The audio has voices nobody can match."],
+["SCHEDULE_94","Ep 211 aired as planned. Ep 212: NOT SCHEDULED. Aired anyway. Runtime 33:00 against a standard 22:00."],
+["EMAIL_ORIENT","From HR: the orientation tape is current. Wing C does not exist, ignore rumors. (Header date: 1999. The station closed in 1997.)"],
+["INCIDENT_97","OFFICIAL: electrical fault, 12/03/1997, no injuries.\nDANA: it happened after the broadcast. It was not a fault.\nTOM: nothing burned. The fire department was called three days later, from the red phone.","WELLER"],
+["EMAIL_2003","Redevelopment crew badge logs: five attempts to enter Wing C, none succeeded. Keypad code is the year of Ep 212 followed by its extra minutes."],
+["INVENTORY","Tapes 01 to 05 logged. Shelf slot 06 is empty and has no entry. The slot label has been scratched out: ZERO."],
+["SCRIPT_212","SUNNY: Neighbors, look behind you. Who is the audience? (Cast list: no audience.)"]];
+/* ---------- audio ---------- */
+let AC,NB,ng;
+function au(){if(AC)return;AC=new(window.AudioContext||window.webkitAudioContext)();AC.mst=AC.createGain();AC.mst.gain.value=set.vol;AC.mst.connect(AC.destination);
+[60,120,181].forEach((f,i)=>{const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=f;g.gain.value=.03/(i+1);o.connect(g);g.connect(AC.mst);o.start()});
+NB=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);const d=NB.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=R()*2-1;
+const n=AC.createBufferSource();n.buffer=NB;n.loop=true;ng=AC.createGain();ng.gain.value=0;n.connect(ng);ng.connect(AC.mst);n.start()}
+function pan(p){const x=AC.createStereoPanner();x.pan.value=p||0;x.connect(AC.mst);return x}
+function burst(d,v,f,p){if(!AC)return;const s=AC.createBufferSource();s.buffer=NB;const fl=AC.createBiquadFilter();fl.frequency.value=f||2000;const g=AC.createGain();g.gain.setValueAtTime(v,AC.currentTime);g.gain.linearRampToValueAtTime(0,AC.currentTime+d);s.connect(fl);fl.connect(g);g.connect(pan(p));s.start()}
+function tone(f,t,d,v,p){if(!AC)return;const o=AC.createOscillator(),g=AC.createGain();o.type="triangle";o.frequency.value=f;g.gain.setValueAtTime(0,AC.currentTime+t);g.gain.linearRampToValueAtTime(v,AC.currentTime+t+.05);g.gain.linearRampToValueAtTime(0,AC.currentTime+t+d);o.connect(g);g.connect(pan(p));o.start(AC.currentTime+t);o.stop(AC.currentTime+t+d+.1)}
+function jingle(p){[523,659,784,1047,784,659].forEach((f,i)=>tone(f*.94,i*.5,.6,.05,p))}
+/* ---------- scene ---------- */
+const sc=new THREE.Scene();sc.background=new THREE.Color(0x07080a);sc.fog=new THREE.Fog(0x07080a,3,24);
+const cam=new THREE.PerspectiveCamera(70,1,.1,60);cam.rotation.order="YXZ";
+const ren=new THREE.WebGLRenderer({canvas:$("cv")});
+const mats={},M=c=>mats[c]||(mats[c]=new THREE.MeshLambertMaterial({color:c}));
+const CO=[],IAM=[];
+function B(x,y,z,w,h,d,c,col){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),M(c));m.position.set(x,y,z);sc.add(m);let o=null;if(col){o={x1:x-w/2,x2:x+w/2,z1:z-d/2,z2:z+d/2,on:1};CO.push(o)}m.co=o;return m}
+const W=(a,b,c,d)=>a==c?B(a,1.5,(b+d)/2,.2,3,d-b,0x7d8076,1):B((a+c)/2,1.5,b,c-a,3,.2,0x7d8076,1);
+function IA(m,t,f){m.f=f;m.t=t;IAM.push(m);return m}
+const fl=new THREE.Mesh(new THREE.PlaneGeometry(40,40),M(0x3a3d38));fl.rotation.x=-Math.PI/2;fl.position.set(0,0,0);sc.add(fl);
+const ce=new THREE.Mesh(new THREE.PlaneGeometry(40,40),M(0x555850));ce.rotation.x=Math.PI/2;ce.position.y=3;sc.add(ce);
+const gr=new THREE.Mesh(new THREE.PlaneGeometry(10,10.5),M(0x3f9a3a));gr.rotation.x=-Math.PI/2;gr.position.set(1,.02,-6.75);sc.add(gr);
+// walls
+[[-14,-10],[-8,-1.5],[1.5,7],[9,14]].forEach(r=>W(r[0],-1.5,r[1],-1.5));
+[[-14,-10],[-8,8],[10,14]].forEach(r=>W(r[0],1.5,r[1],1.5));
+W(-14,-1.5,-14,1.5);W(14,-1.5,14,1.5);
+W(-14,-10,-14,-1.5);W(-14,-10,-4,-10);W(-4,-12,-4,-1.5);W(-4,-12,6,-12);W(6,-12,6,-1.5);W(6,-10,14,-10);W(14,-10,14,-1.5);
+W(-14,1.5,-14,9);W(-4,1.5,-4,9);W(-14,9,-4,9);W(4,1.5,4,9);W(14,1.5,14,9);W(4,9,14,9);
+// rooms: 0 hall 1 archive 2 studio 3 control 4 storage 5 restricted
+const RB=[[-14,14,-1.5,1.5],[-14,-4,-10,-1.5],[-4,6,-12,-1.5],[6,14,-10,-1.5],[-14,-4,1.5,9],[4,14,1.5,9]],RN=["HALL","ARCHIVE","STUDIO A","CONTROL","STORAGE","WING C"];
+const room=(x,z)=>{for(let i=0;i<6;i++){const b=RB[i];if(x>=b[0]&&x<=b[1]&&z>=b[2]&&z<=b[3])return i}return 0};
+const LT=RB.map((b,i)=>{const l=new THREE.PointLight(i==2?0xffc070:i==5?0xff6050:0xd8ffe0,i==2?.9:1.1,i==0?30:16);l.position.set((b[0]+b[1])/2,2.6,(b[2]+b[3])/2);l.b=l.intensity;sc.add(l);return l});
+sc.add(new THREE.AmbientLight(0x404048,.45));
+// doors
+const D=[];
+function dr(x,z,w,rq,kp){const m=B(x,1.3,z,w,2.6,.15,0x5a3b22,1);const d={m,c:m.co,rq,kp,open:0,x,z};D.push(d);IA(m,"Door",()=>useDoor(d))}
+dr(-9,-1.5,2,0);dr(0,-1.5,3,3);dr(8,-1.5,2,2);dr(-9,1.5,2,4);dr(9,1.5,2,0,1);
+function setDoor(d,o){d.open=o;d.m.visible=!o;d.c.on=!o;burst(.25,.25,500)}
+function useDoor(d){if(d.rq&&night()<d.rq){sub("Locked. Maintenance tag: no access before Night "+d.rq+".");return}
+if(d.kp&&!S.code){ask("KEYPAD — ENTER 4-DIGIT CODE",v=>{hide();if(v=="9411"){S.code=1;save();sub("The lock releases.");setDoor(d,1)}else{sub("ACCESS DENIED.");burst(.2,.3,3000)}});return}
+setDoor(d,d.open?0:1)}
+// tapes
+const TP=[];
+function tape(n,x,y,z){const m=B(x,y,z,.2,.04,.35,[0,0xc33,0x36a,0x8a4,0xd90,0x777,0x111][n]);TP[n]=m;IA(m,"Pick up TAPE 0"+n,()=>{S.inv.push(n);save();sub("Picked up TAPE 0"+n+".");vis()})}
+const vis=()=>{for(let n=1;n<=6;n++)TP[n].visible=!S.inv.includes(n)&&(n!=5||night()>=5)};
+// archive
+B(-9,.45,-8.5,3,.9,1.2,0x5a4a3a,1);
+IA(B(-9,1.15,-8.8,.9,.7,.6,0x2a2d2a),"Use terminal",openTerm);
+B(-12,.45,-8.5,1.4,.9,1,0x4a4030,1);IA(B(-12,1.02,-8.5,.8,.15,.5,0x111),"Use VHS deck",openVHS);B(-12,1.35,-8.7,.6,.5,.4,0x333);
+B(-13.6,1.4,-5,.5,2.8,5,0x4a3b2a,1);for(let i=0;i<8;i++)B(-13.2,.6+i%4*.6,-7+i*.6,.15,.4,.3,0x222+i*0x111100);
+tape(1,-13.2,1.55,-5.4);tape(5,-9.8,.94,-8.5);
+IA(B(-8.2,.93,-8.5,.3,.02,.3,0xffee66),"Read sticky note",()=>note("STICKY NOTE","s1","Terminal login: MARLOW. Do not tell Dana."));
+IA(B(-6,.93,-8.5,.3,.15,.3,0x222),"Phone",()=>{sub("[The line hums. Someone breathes, then hangs up.]");burst(.6,.2,800)});
+IA(B(-4.15,2.2,-5,.1,.5,.5,0xeeeeee),"Wall clock",()=>sub("2:47. It said 2:47 an hour ago."));
+IA(B(-9,.93,-7.9,.4,.04,.3,0xdddddd),"Read incident log",()=>note("INCIDENT LOG","s2","Night tech log. Shelf count says 5 tapes. Deck count says 6. Which is lying? D."));
+// hall
+IA(B(-6,1.7,-1.4,1,1.4,.05,0xffd23f),"Sunny poster",()=>{sec("poster");note("SUNNY POSTER","s3","The corner is loose. Behind it, in pencil: IT WAS NEVER A CHANNEL.")});
+IA(B(4,2.4,-1.4,.6,.6,.05,0xdddddd),"Broken clock",()=>{sec("clock");sub("The hands are stopped at 4:11.")});
+IA(B(13.9,1.3,0,.1,2.2,1,0x1a8a3a),"Fire exit",()=>sub("Chained shut from the inside."));
+for(let i=-12;i<12;i+=4)B(i+2,.01,1.4,.2,.02,.2,0xffee88);
+// studio
+B(0,.3,-8,6,.6,3,0xc9a36a,1);B(-3,1.2,-10,1.8,2.4,1.5,0xe0707a,1);B(3,1.2,-10,1.8,2.4,1.5,0x70a0e0,1);B(1,1.5,-11.85,10,3,.05,0x6fa8dc);
+for(let i=0;i<5;i++)B(-2+i*1.5,2.9,-5,.4,.4,.4,0x222);
+IA(B(0,.66,-8,.4,.06,.3,0x993399),"Weller's storybook",()=>{sec("book");note("STORYBOOK","s4","Last page torn out. In the margin: SHE COUNTS BACKWARD FROM 1997.")});
+// control
+B(10,.5,-9,6,1,1.2,0x3b3f44,1);[7.5,9.5,11.5].forEach(x=>B(x,1.4,-9.3,1.2,.7,.5,0x222));
+IA(B(12.3,1.07,-8.6,1.2,.15,.5,0x883322),"Broadcast panel",openTune);tape(2,8.5,1.05,-8.6);
+// storage
+B(-6,.5,3,1.2,1,1.2,0x8a6a40,1);B(-12,.5,7,2,1,1.2,0x8a6a40,1);B(-8,1,8.5,.8,2,.5,0xdaa520,1);tape(4,-12,1.04,7);
+IA(B(-5,1.2,8.5,.4,.3,.05,0x889),"Locker tag",()=>note("LOCKER TAG","s5","WELLER, J. Incident files: use my name. Dana never remembers passwords."));
+IA(B(-6,1.02,3,.3,.03,.4,0xeeeedd),"Read letter",()=>note("EMPLOYEE LETTER","s6","Dana swears it was Weller who locked Wing C. Tom swears it was Sunny. Neither will say who unlocked it."));
+// restricted
+B(9,.5,6,3,1,1.5,0x333333,1);IA(B(9,1.1,6,.8,.2,.5,0x400),"Master deck",()=>sub(S.d.includes(6)?"The master deck is warm. Signal found.":"The master deck waits for the unlabeled tape."));tape(6,10.5,1.04,6);
+IA(B(6,.5,3,.8,1,.8,0x555555,1),"Read file",()=>note("WING C LOG","s7","Every recording session here ends the same way: whoever was recording becomes the footage."));
+tape(3,2,.1,-4);TP[3].position.set(-2.5,.64,-8);TP[3].visible=true;
+// mascots
+const MC=[[0xf5c518,1.6],[0x9b6bd1,1.5],[0x4caf50,1.1],[0xd32f2f,1.2],[0x8d9399,1.9]],ms=MC.map(([c,h])=>{const g=new THREE.Group();const b=new THREE.Mesh(new THREE.CylinderGeometry(.35,.45,h*.6,10),M(c));b.position.y=h*.3;const hd=new THREE.Mesh(new THREE.SphereGeometry(.38,12,10),M(c));hd.position.y=h*.6+.3;g.add(b,hd);[-.14,.14].forEach(x=>{const e=new THREE.Mesh(new THREE.SphereGeometry(.07,6,6),M(0xffffff));e.position.set(x,h*.6+.38,.33);g.add(e)});const m=new THREE.Mesh(new THREE.BoxGeometry(.3,.05,.05),M(0x220000));m.position.set(0,h*.6+.2,.36);g.add(m);sc.add(g);return g});
+const SP=[[[12,0],[-12,0],[0,.3],[8,-.3],[-6,.2]],[[-6,-3],[-12,-4],[-7,-6]],[[0,-8],[-2,-6],[3,-6],[-3,-4],[5,-4]],[[10,-6],[12,-3]],[[-8,5],[-11,4],[-6,7]]];
+function put(i,r,k){S.pos[i]=r;const s=SP[r][(k||i)%SP[r].length];ms[i].position.set(s[0],0,s[1]);ms[i].lookAt(P.x,0,P.z)}
+/* ---------- player ---------- */
+const P={x:-9,z:-4,y:0,yaw:Math.PI,pitch:0,h:1.6,bob:0,room:1,st:0},K={};let ui=0,mode=0,started=0,drag=0;
+const hit=(x,z)=>CO.some(c=>c.on&&x>c.x1-.3&&x<c.x2+.3&&z>c.z1-.3&&z<c.z2+.3);
+const rc=new THREE.Raycaster();let cur=null,last=performance.now();
+function loop(){requestAnimationFrame(loop);const n=performance.now(),dt=Math.min(.05,(n-last)/1e3);last=n;
+if(started&&!ui){const sp=(K.ShiftLeft?4.2:2.4)*(K.KeyC||K.ControlLeft?.5:1),f=(K.KeyW?1:0)-(K.KeyS?1:0),s=(K.KeyD?1:0)-(K.KeyA?1:0);
+if(f||s){const l=Math.hypot(f,s),dx=(-Math.sin(P.yaw)*f+Math.cos(P.yaw)*s)/l*sp*dt,dz=(-Math.cos(P.yaw)*f-Math.sin(P.yaw)*s)/l*sp*dt;
+if(!hit(P.x+dx,P.z))P.x+=dx;if(!hit(P.x,P.z+dz))P.z+=dz;P.bob+=dt*sp*2.6;P.st+=dt*sp;if(P.st>1.6){P.st=0;burst(.06,.12,350)}}
+P.h+=((K.KeyC||K.ControlLeft?1.05:1.6)-P.h)*.15;
+const r=room(P.x,P.z);if(r!=P.room){P.room=r;if(r==2&&night()>=3&&!S.sg3){S.sg3=1;[0,1,2,3,4].forEach(i=>put(i,2,i+2));sub("The cast is standing differently than before.")}}
+cam.position.set(P.x,P.h+Math.sin(P.bob)*.025,P.z);cam.rotation.set(P.pitch,P.yaw,0);
+rc.setFromCamera({x:0,y:0},cam);const h=rc.intersectObjects(IAM.filter(m=>m.visible),false)[0];cur=h&&h.distance<2.8?h.object:null;$("pr").textContent=cur?"[E] "+(cur.t=="Door"?"Open / close door":cur.t):""}
+else{$("pr").textContent="";cur=null}
+if(ap&&n>ap.u){put(0,S.pos[0],0);ap=0}
+LT.forEach((l,i)=>l.intensity=l.b*(n<fk.u&&fk.i==i?R()*.8:1)*(i==0&&R()<.02?.4:1));
+ren.render(sc,cam)}
+let ap=0,fk={u:0,i:0};
+function rs(){ren.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}addEventListener("resize",rs);rs();
+/* ---------- ui ---------- */
+let st;function sub(t){if(!set.sub)return;$("sub").textContent=t;clearTimeout(st);st=setTimeout(()=>$("sub").textContent="",4500)}
+function show(h,w){mode=0;$("pn").className="pn"+(w?" w95":"");$("pn").innerHTML=h;$("ov").style.display="flex";ui=1;if(document.exitPointerLock)document.exitPointerLock()}
+function hide(){$("ov").style.display="none";ui=0;if(mode=="cam")camLeft();mode=0;if(ng)ng.gain.value=0}
+function ask(t,cb){show(`<b>${t}</b><br><input type="text" id="in" size="12" autocomplete="off"> <button id="go">OK</button> <button onclick="hide()">Cancel</button>`,t.startsWith("MORROW"));$("in").focus();$("go").onclick=()=>cb($("in").value.trim().toUpperCase());$("in").onkeydown=e=>{e.stopPropagation();if(e.key=="Enter")$("go").click()}}
+function note(t,id,x){if(!S.docs.includes(id)){S.docs.push(id);save()}show(`<b>${t}</b><p>${x.replace(/\n/g,"<br>")}</p><button onclick="hide()">Close</button>`)}
+function sec(id){if(!S.sec.includes(id)){S.sec.push(id);save()}}
+function obj(){const h=n=>S.d.includes(n);if(S.end)return"The night is over. Secrets remain.";
+return !h(1)?"Take TAPE 01 from the archive shelf. Insert it in the VHS deck. Tune tracking and signal until the hidden segment (last third of the tape) appears.":!h(2)?"Control Room unlocked. Find TAPE 02.":!h(3)?"Studio A unlocked. Find TAPE 03.":!h(4)?"Storage unlocked. Find TAPE 04.":!h(5)?"TAPE 05 has appeared in the archive.":"Restore the broadcast at the Control Room panel."}
+function hudu(){$("ob").innerHTML=`NIGHT ${night()} — ${NM[night()-1]}<br>${obj()}<br>TAPES: ${S.inv.map(n=>"0"+n).join(" ")||"none"} | DOCS ${S.docs.length}/14`}
+setInterval(hudu,500);
+/* terminal */
+function openTerm(){if(!S.login){ask("MORROW OS 3.1 — PASSWORD:",v=>{if(v=="MARLOW"){S.login=1;save();openTerm()}else show("<b>LOGIN FAILED</b><br><button onclick=hide()>Close</button>",1)});return}
+show(`<b>MORROW OS 3.1 — ARCHIVE TERMINAL</b><hr>`+FL.map((f,i)=>`<button onclick="rd(${i})">${f[0]}</button>`).join("")+(night()>=2?`<button onclick="openCam()">SECURITY CAMERAS</button>`:`<button disabled>CAMERAS (OFFLINE)</button>`)+`<hr><button onclick="hide()">Log off</button>`,1)}
+function rd(i){const f=FL[i],go=()=>{if(!S.docs.includes("f"+i)){S.docs.push("f"+i);save()}show(`<b>${f[0]}</b><p>${f[1].replace(/\n/g,"<br>")}</p><button onclick="openTerm()">Back</button>`,1)};f[2]&&!S.docs.includes("f"+i)?ask("FILE PASSWORD:",v=>v==f[2]?go():(sub("Access denied."),openTerm())):go()}
+/* cameras */
+let KC=0,PH=0,seenPh=0;
+function openCam(){show(`<b>SECURITY — CH ${KC+1}</b><br><canvas id="sc" class="sc" width="320" height="180"></canvas><div>`+[0,1,2,3,4].map(i=>`<button onclick="KC=${i};openCam()">CAM ${i+1}</button>`).join("")+`<button onclick="hide()">Close</button></div>`);mode="cam"}
+function drawCam(){const c=$("sc");if(!c)return;const x=c.getContext("2d");x.fillStyle="#0c140e";x.fillRect(0,0,320,180);x.fillStyle="#1d2a20";x.fillRect(0,120,320,60);
+S.pos.forEach((r,i)=>{if(r==KC){x.fillStyle="#"+MC[i][0].toString(16).padStart(6,"0")+"";x.globalAlpha=.55;x.fillRect(40+i*52,60,26,90);x.beginPath();x.arc(53+i*52,56,16,0,7);x.fill();x.globalAlpha=1}});
+if(PH&&PH.k==KC){x.fillStyle="#000";x.fillRect(250,50,30,110);x.beginPath();x.arc(265,46,17,0,7);x.fill();seenPh=1}
+for(let i=0;i<300;i++){x.fillStyle=R()<.5?"#fff4":"#8884";x.fillRect(R()*320,R()*180,2,1)}
+if(R()<.1){x.fillStyle="#fff3";x.fillRect(0,R()*180,320,6)}
+x.fillStyle="#7f7";x.font="11px monospace";x.fillText("CAM "+(KC+1)+" "+RN[KC]+"  REC 03:"+(10+(Date.now()/6e4|0)%50),6,12);if(ng)ng.gain.value=.012}
+function camLeft(){if(seenPh&&PH){if(R()<.5){put(0,PH.k)}PH=0;seenPh=0}}
+/* VHS */
+const V={tp:0,t:0,p:0,r:1,k:.5,s:.5,h:0};
+function openVHS(){show(`<b>VHS DECK — ARCHIVE UNIT 2</b><br><canvas id="sc" class="sc" width="320" height="180"></canvas><div id="st"></div><div>TRACKING <input id="tk" type="range" min="0" max="100" value="50"> SIGNAL <input id="sgn" type="range" min="0" max="100" value="50"></div><div><button onclick="V.p=1;V.r=1">PLAY</button><button onclick="V.p=0">PAUSE</button><button onclick="V.p=1;V.r=-5">REW</button><button onclick="V.p=1;V.r=5">FF</button><button onclick="V.tp=0;V.p=0;V.t=0">EJECT</button><button onclick="hide()">CLOSE</button></div><div>INSERT: `+(S.inv.map(n=>`<button onclick="V.tp=${n};V.t=0;V.p=0;V.h=0">TAPE 0${n}</button>`).join("")||"no tapes held")+`</div>`);mode="vhs"}
+const fmt=t=>(t/60|0)+":"+String(t%60|0).padStart(2,"0");
+function wrap(s,n){const o=[];let l="";s.split(" ").forEach(w=>{if((l+w).length>n){o.push(l);l=""}l+=w+" "});o.push(l);return o}
+function vtick(){const c=$("sc");if(!c)return;V.k=$("tk").value/100;V.s=$("sgn").value/100;const x=c.getContext("2d"),tp=T[V.tp];
+if(!tp){x.fillStyle="#001";x.fillRect(0,0,320,180);x.fillStyle="#6af";x.font="14px monospace";x.fillText("NO TAPE",125,95);$("st").textContent="Select a tape below.";return}
+const q=1-Math.min(1,Math.max(Math.abs(V.k-tp.tr)/.25,Math.abs(V.s-tp.sg)/.3)),cl=Math.abs(V.k-tp.tr)<.08&&Math.abs(V.s-tp.sg)<.1;
+if(V.p){V.t+=V.r*.1;if(V.t>=60){V.t=60;V.p=0}if(V.t<=0){V.t=0;V.p=0}}
+if(cl&&V.p&&V.r==1&&V.t>=40){V.h+=.1;if(V.h>2.5&&!S.d.includes(V.tp))digit(V.tp)}
+x.fillStyle=tp.bg;x.fillRect(0,0,320,128);x.fillStyle=tp.fc;x.beginPath();x.arc(160,66,36,0,7);x.fill();x.fillStyle="#000";x.fillRect(140,78,40,5);
+for(let i=0;i<(1-q)*900+40;i++){x.fillStyle=R()<.5?"#fff":"#888";x.fillRect(R()*320,R()*128,2+R()*8,1)}
+if(q<1){const y=R()*110;x.drawImage(c,0,y,320,12,(R()-.5)*70*(1-q),y,320,12)}
+const sg=Math.min(2,V.t/20|0);let s=tp.L[sg];if(sg==2&&!cl)s=0;
+x.fillStyle="#000";x.fillRect(0,128,320,52);x.fillStyle="#fff";x.font="11px monospace";
+if(s){if(q<.7)s=s.replace(/[a-z]/gi,ch=>R()<(1-q)?"▒":ch);wrap(s,44).forEach((l,i)=>x.fillText(l,6,142+i*13))}else x.fillText("▒▒▒ NO SIGNAL ▒▒▒",100,150);
+x.fillStyle="#f44";x.fillText((V.p?V.r==1?"PLAY":V.r>0?"FF":"REW":"PAUSE")+" "+fmt(V.t),6,12);
+$("st").textContent="TAPE 0"+V.tp+(S.d.includes(V.tp)?" [DIGITIZED]":"")+" | clarity "+(q*100|0)+"%";if(ng)ng.gain.value=.05*(1-q)+.01}
+function digit(n){S.d.push(n);save();vis();sub("TAPE 0"+n+" DIGITIZED. "+(n<5?"The facility shifts. Night "+night()+" begins.":n==5?"Something in the Control Room is powering up.":"The master recording is saved."));burst(.8,.3,1500)}
+/* broadcast */
+const U={a:.5,b:.5,c:0};
+function openTune(){if(!S.d.includes(5)){sub("No source signal. The panel wants the final tape digitized first.");return}if(S.end){sub("The panel is dead.");return}
+show(`<b>BROADCAST RESTORE</b><br><canvas id="sc" class="sc" width="320" height="120"></canvas><div>CARRIER <input id="ta" type="range" min="0" max="100" value="50"> PHASE <input id="tb" type="range" min="0" max="100" value="50"></div><div id="st"></div><button onclick="hide()">Abort</button>`);U.c=0;mode="tune"}
+function ttick(){const c=$("sc");if(!c)return;const a=$("ta").value/100,b=$("tb").value/100;if(R()<.05){U.a=Math.min(.9,Math.max(.1,U.a+(R()-.5)*.5));U.b=Math.min(.9,Math.max(.1,U.b+(R()-.5)*.5))}
+const d=Math.max(Math.abs(a-U.a),Math.abs(b-U.b)),ok=d<.07;U.c=ok?U.c+.1:Math.max(0,U.c-.06);const x=c.getContext("2d");x.fillStyle="#010";x.fillRect(0,0,320,120);
+for(let i=0;i<600*Math.min(1,d*3);i++){x.fillStyle=R()<.5?"#fff":"#6c6";x.fillRect(R()*320,R()*120,3,1)}x.fillStyle="#9fe8a8";x.fillRect(0,100,320*U.c/8,8);
+$("st").textContent=ok?"Signal locking... interference at "+(d*100|0)+"%":"The signal drifts. Chase it.";if(ng)ng.gain.value=.05*Math.min(1,d*3);if(U.c>=8)ending()}
+function ending(){const hid=S.sec.length>=3&&S.d.includes(6);S.end=hid?2:1;save();mode=0;if(ng)ng.gain.value=0;
+show(hid?`<b>THE DOOR THAT WATCHES BACK</b><p>The broadcast holds. On every monitor the Wing C door opens by itself, and the footage turns to face you. Sunny, Marlow, Pip, Ruby and Mr. Weller sit in the empty audience, waiting for the episode to start. Someone has logged you on the staff directory. Employee 00. Start date: 1982.</p><p>The tape in the deck is labeled with tomorrow's date.</p><p><i>HIDDEN ENDING. CHANNEL ZERO will return.</i></p><button onclick="hide()">Keep exploring</button>`:`<b>BROADCAST RESTORED</b><p>For eleven minutes the station is quiet. The corrupted signal resolves, the monitors settle, and the archive is saved to the company server. You clock out at 03:12. In the lot, every window of the building is lit.</p><p>The inventory shows TAPE 07, labeled tonight's date. You did not record it.</p><p><i>STANDARD ENDING. Not everything was found. Look closer.</i></p><button onclick="hide()">Keep exploring</button>`)}
+/* director */
+let cd=25,lastE=-1;
+function other(){let r;do{r=5*R()|0}while(r==P.room);return r}
+const EV=[()=>put(5*R()|0,other()),
+()=>{if(P.room==0&&!ap){put(0,0,P.x>0?1:0);ms[0].position.set(P.x>0?-12.5:12.5,0,0);ms[0].lookAt(P.x,0,P.z);ap={u:performance.now()+4500};jingle(0)}},
+()=>{$("fl").style.opacity=.3;setTimeout(()=>$("fl").style.opacity=0,250);burst(.8,.25,3000);sub("[A CRT clicks on somewhere in the building.]")},
+()=>{const o=D.filter(d=>d.open&&Math.hypot(d.x-P.x,d.z-P.z)>3);if(o.length){setDoor(o[R()*o.length|0],0);sub("[A door closes.]")}},
+()=>{const p=R()<.5?-1:1;if(R()<.5){jingle(p);sub("[Distant music. The Happy Neighborhood theme, slowed.]")}else{burst(1.5,.08,900,p);sub("[A quiet voice under the static: technician.]")}},
+()=>{PH={k:1+(4*R()|0)};seenPh=0;sub("[Static ripples through the security feeds.]")},
+()=>{fk={u:performance.now()+2500,i:P.room};burst(.5,.1,200)}];
+setInterval(()=>{if(ui||!started)return;if(--cd>0)return;cd=Math.max(7,(12+R()*25)/(1+night()*.12))|0;let k;do{k=EV.length*R()|0}while(k==lastE);lastE=k;EV[k]();},1000);
+setInterval(()=>{if(mode=="vhs")vtick();else if(mode=="cam")drawCam();else if(mode=="tune")ttick()},100);
+setInterval(()=>{if(started)save()},20000);
+/* input */
+const cv=$("cv");
+function begin(){au();if(AC.resume)AC.resume();started=1;hide();vis();S.pos.forEach((r,i)=>put(i,r));try{cv.requestPointerLock()}catch(e){}sub("Archive technician, night shift. WASD move, E interact, P pause.")}
+function menu(){const fresh=!started;show(`<b style="font-size:20px">${fresh?"CHANNEL ZERO":"PAUSED"}</b><p>${fresh?"Morrow Broadcasting Station, 2025. Digitize the archive. Do not trust the dates.<br>WASD move · Shift sprint · C crouch · E interact · P pause · Esc closes screens":"Autosaves every 20 seconds."}</p>
+<div>Mouse sensitivity <input type="range" min="1" max="8" value="${set.sens*1000}" oninput="set.sens=this.value/1000"></div>
+<div>Brightness <input type="range" min="50" max="160" value="${set.br*100}" oninput="set.br=this.value/100;cv.style.filter='brightness('+set.br+')'"></div>
+<div>Volume <input type="range" min="0" max="100" value="${set.vol*100}" oninput="set.vol=this.value/100;if(AC)AC.mst.gain.value=set.vol"></div>
+<div><label><input type="checkbox" ${set.sub?"checked":""} onchange="set.sub=this.checked?1:0"> Subtitles</label></div>
+<button onclick="begin()">${fresh?(S.d.length||S.inv.length?"CONTINUE":"BEGIN"):"RESUME"}</button><button onclick="save();sub('Saved.')">SAVE</button><button onclick="if(confirm('Erase save?')){localStorage.removeItem('cz0');location.reload()}">NEW GAME</button>`)}
+addEventListener("keydown",e=>{if(e.target.tagName=="INPUT"&&e.target.type=="text")return;K[e.code]=1;if(!started)return;
+if(e.code=="KeyE"&&!ui&&cur)cur.f();else if(e.code=="Escape"&&ui)hide();else if(e.code=="KeyP"&&!ui)menu()});
+addEventListener("keyup",e=>K[e.code]=0);
+cv.addEventListener("mousedown",()=>{drag=1;if(started&&!ui)try{cv.requestPointerLock()}catch(e){}});addEventListener("mouseup",()=>drag=0);
+addEventListener("mousemove",e=>{if(ui||!started)return;if(document.pointerLockElement==cv||drag){P.yaw-=e.movementX*set.sens;P.pitch=Math.max(-1.4,Math.min(1.4,P.pitch-e.movementY*set.sens))}});
+document.addEventListener("pointerlockchange",()=>{if(started&&!ui&&!document.pointerLockElement&&!drag)menu()});
+vis();menu();loop();
+</script></body></html>
